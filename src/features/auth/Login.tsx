@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Eye, EyeOff } from 'lucide-react';
-import api from '../api/axios';
+import api from '../../api/axios';
 
 const Login = () => {
     const [username, setUsername] = useState('');

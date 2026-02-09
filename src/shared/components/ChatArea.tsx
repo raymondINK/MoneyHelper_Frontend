@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import ChatMessage from './ChatMessage'
-import api from '../api/axios'
+import api from '../../api/axios'
 import { MessageSquare, Sparkles, TrendingUp, TrendingDown } from 'lucide-react'
 
 interface Message {

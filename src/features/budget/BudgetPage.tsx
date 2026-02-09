@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Settings, Plus, X, Wallet, Clock, Repeat } from 'lucide-react';
-import CategoryBudgetRow from '../components/CategoryBudgetRow';
-import StatusModal from '../components/StatusModal';
-import api from '../api/axios';
+import { CategoryBudgetRow, StatusModal } from '../../shared/components';
+import api from '../../api/axios';
 
 interface BudgetPageProps {
   standalone?: boolean;

@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, X, TrendingUp, TrendingDown, Search, ArrowLeftRight } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
-import TransactionCalendar from '../components/TransactionCalendar';
-import StatusModal from '../components/StatusModal';
-import api from '../api/axios';
+import { Sidebar, TransactionCalendar, StatusModal } from '../../shared/components';
+import api from '../../api/axios';
 
 type ViewTab = 'calendar' | 'daily' | 'monthly' | 'summary' | 'description';
 

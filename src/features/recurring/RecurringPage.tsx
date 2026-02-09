@@ -4,9 +4,8 @@ import {
   Plus, X, Calendar, CreditCard, TrendingUp, Clock,
   DollarSign, Trash2, Check, Sparkles
 } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
-import Toast from '../components/Toast';
-import api from '../api/axios';
+import { Sidebar, Toast } from '../../shared/components';
+import api from '../../api/axios';
 
 type TabType = 'payments' | 'income' | 'installments';
 

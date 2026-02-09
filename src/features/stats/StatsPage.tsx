@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import BudgetPage from './BudgetPage';
-import api from '../api/axios';
+import { Sidebar } from '../../shared/components';
+import BudgetPage from '../budget/BudgetPage';
+import api from '../../api/axios';
 import {
   PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer

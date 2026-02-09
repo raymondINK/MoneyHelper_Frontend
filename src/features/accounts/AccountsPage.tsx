@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, TrendingUp, X, Wallet } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
-import api from '../api/axios';
+import { Sidebar } from '../../shared/components';
+import api from '../../api/axios';
 
 const AccountsPage = () => {
   const [user, setUser] = useState<any>(null);

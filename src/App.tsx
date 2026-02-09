@@ -1,13 +1,13 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import AccountsPage from './pages/AccountsPage'
-import TransactionsPage from './pages/TransactionsPage'
-import StatsPage from './pages/StatsPage'
-import BudgetPage from './pages/BudgetPage'
-import SettingsPage from './pages/SettingsPage'
-import RecurringPage from './pages/RecurringPage'
+import { Login } from './features/auth'
+import Dashboard from './features/dashboard'
+import AccountsPage from './features/accounts'
+import TransactionsPage from './features/transactions'
+import StatsPage from './features/stats'
+import BudgetPage from './features/budget'
+import SettingsPage from './features/settings'
+import RecurringPage from './features/recurring'
 
 function App() {
   return (

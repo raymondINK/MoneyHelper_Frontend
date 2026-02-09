@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
-import ChatArea from '../components/ChatArea';
-import BottomBar from '../components/BottomBar';
-import { useTheme } from '../contexts/ThemeContext';
-import api from '../api/axios';
+import { Sidebar, Header, ChatArea, BottomBar } from '../../shared/components';
+import { useTheme } from '../../theme';
+import api from '../../api/axios';
 
 const Dashboard = () => {
   const [user, setUser] = useState<any>(null);

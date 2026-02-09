@@ -6,10 +6,9 @@ import {
   Save, ArrowLeft, RefreshCw, Bell, Shield, Eye, EyeOff,
   Check, AlertTriangle, Loader2, ChevronRight, Download, History, Link as LinkIcon
 } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
-import Toast from '../components/Toast';
-import { useTheme } from '../contexts/ThemeContext';
-import api from '../api/axios';
+import { Sidebar, Toast } from '../../shared/components';
+import { useTheme } from '../../theme';
+import api from '../../api/axios';
 
 interface UserSettings {
   id: number;

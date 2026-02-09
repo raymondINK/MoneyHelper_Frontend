@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Send, ChevronDown, Paperclip, X, Loader2, Sparkles, ArrowLeftRight } from 'lucide-react'
-import api from '../api/axios'
+import api from '../../api/axios'
 
 interface Budget {
   id: number;
