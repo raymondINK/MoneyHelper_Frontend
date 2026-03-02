@@ -355,7 +355,7 @@ Examples:
       ];
 
       // Optionally, update transactions state immediately
-      onTransactionCreated(newTransactions);
+      onTransactionCreated();
 
       // Reset form & close modal
       setTransferData({ fromAccountId: '', toAccountId: '', amount: '', note: '' });
