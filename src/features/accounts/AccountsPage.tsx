@@ -9,6 +9,7 @@ interface Account {
   name: string;
   type: string;
   balance: number;
+  monthly_allowance?: number;
   created_at: string;
 }
 
@@ -29,7 +30,14 @@ const AccountsPage: React.FC = () => {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [totalBalance, setTotalBalance] = useState(0);
   const [monthlySpent, setMonthlySpent] = useState(0);
-  const [monthlyLimit, setMonthlyLimit] = useState(4500);
+  const [monthlyLimit, setMonthlyLimit] = useState(0);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [newAccount, setNewAccount] = useState({
+    name: '',
+    type: 'checking',
+    balance: '',
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem('sidebarCollapsed') === 'true';
   });
@@ -65,11 +73,18 @@ const AccountsPage: React.FC = () => {
         const total = accountsRes.data.reduce((sum: number, acc: Account) => sum + acc.balance, 0);
         setTotalBalance(total);
 
-        const currentMonth = new Date().getMonth();
+        const totalAllowance = accountsRes.data.reduce(
+          (sum: number, acc: Account) => sum + (acc.monthly_allowance || 0), 0
+        );
+        setMonthlyLimit(totalAllowance);
+
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
         const spent = transactionsRes.data
           .filter((t: Transaction) => {
             const txDate = new Date(t.date);
-            return t.type === 'expense' && txDate.getMonth() === currentMonth;
+            return t.type === 'expense' && txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
           })
           .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
         setMonthlySpent(spent);
@@ -86,6 +101,31 @@ const AccountsPage: React.FC = () => {
 
     fetchData();
   }, [navigate]);
+
+  const handleAddAccount = async () => {
+    if (!newAccount.name.trim()) return;
+    setAddLoading(true);
+    try {
+      await api.post('/accounts', {
+        name: newAccount.name.trim(),
+        type: newAccount.type,
+        balance: parseFloat(newAccount.balance) || 0,
+      });
+      // Refresh accounts
+      const res = await api.get('/accounts');
+      setAccounts(res.data);
+      const total = res.data.reduce((sum: number, acc: Account) => sum + acc.balance, 0);
+      setTotalBalance(total);
+      const totalAllowance = res.data.reduce((sum: number, acc: Account) => sum + (acc.monthly_allowance || 0), 0);
+      setMonthlyLimit(totalAllowance);
+      setShowAddModal(false);
+      setNewAccount({ name: '', type: 'checking', balance: '' });
+    } catch (err) {
+      console.error('Failed to create account:', err);
+    } finally {
+      setAddLoading(false);
+    }
+  };
 
   const getIconForCategory = (category: string) => {
     const icons: Record<string, string> = {
@@ -130,9 +170,14 @@ const AccountsPage: React.FC = () => {
     }
   };
 
-  const usagePercentage = Math.round((monthlySpent / monthlyLimit) * 100);
+  const usagePercentage = monthlyLimit > 0 ? Math.min(Math.round((monthlySpent / monthlyLimit) * 100), 100) : 0;
+
+  const _now = new Date();
+  const daysInCurMonth = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate();
+  const curMonthShort = _now.toLocaleString('default', { month: 'short' }).toUpperCase();
 
   return (
+    <>
     <div className="flex h-screen bg-[#0A0A0A] overflow-hidden">
       <Sidebar user={user} collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       
@@ -159,7 +204,7 @@ const AccountsPage: React.FC = () => {
             <div className="flex items-center gap-4">
               <button className="glass-btn relative flex size-10 items-center justify-center rounded-full text-gray-400 hover:text-white">
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
-                <span className="absolute right-2 top-2 size-2 rounded-full bg-primary shadow-[0_0_8px_#0df259]"></span>
+                <span className="absolute right-2 top-2 size-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span>
               </button>
             </div>
           </div>
@@ -174,12 +219,12 @@ const AccountsPage: React.FC = () => {
                   <div>
                     <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-gray-500">Total Balance</p>
                     <h3 className="text-5xl font-extrabold tracking-tighter text-white neon-text mb-4">
-                      ${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      RM {totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 border border-primary/20">
-                        <span className="material-symbols-outlined text-primary text-sm font-bold">trending_up</span>
-                        <span className="text-sm font-bold text-primary">+12.5%</span>
+                      <div className="flex items-center gap-1.5 rounded-full bg-purple-500/10 px-3 py-1 border border-purple-500/20">
+                        <span className="material-symbols-outlined text-purple-400 text-sm font-bold">trending_up</span>
+                        <span className="text-sm font-bold text-purple-400">+12.5%</span>
                       </div>
                       <span className="text-xs font-medium text-gray-500 uppercase tracking-tight">Monthly Trend</span>
                     </div>
@@ -189,22 +234,20 @@ const AccountsPage: React.FC = () => {
                 <div className="relative z-10 mt-auto pt-8 w-full h-32">
                   <svg className="h-full w-full" preserveAspectRatio="none" viewBox="0 0 400 100">
                     <defs>
-                      <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stopColor="#0df259" stopOpacity="0.25"></stop>
-                        <stop offset="100%" stopColor="#0df259" stopOpacity="0"></stop>
+                      <linearGradient id="chartGradientAcc" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor="#A855F7" stopOpacity="0.3"></stop>
+                        <stop offset="100%" stopColor="#A855F7" stopOpacity="0"></stop>
                       </linearGradient>
                     </defs>
-                    <path d="M0 80 Q 40 70, 80 85 T 160 55 T 240 75 T 320 40 T 400 60 V 100 H 0 Z" fill="url(#chartGradient)"></path>
-                    <path className="chart-line" d="M0 80 Q 40 70, 80 85 T 160 55 T 240 75 T 320 40 T 400 60" fill="none" stroke="#0df259" strokeLinecap="round" strokeWidth="3"></path>
-                    <circle className="animate-pulse shadow-[0_0_10px_#0df259]" cx="160" cy="55" fill="#0df259" r="4"></circle>
-                    <circle className="shadow-[0_0_10px_#0df259]" cx="320" cy="40" fill="#0df259" r="4"></circle>
+                    <path d="M0 80 Q 40 70, 80 85 T 160 55 T 240 75 T 320 40 T 400 60 V 100 H 0 Z" fill="url(#chartGradientAcc)"></path>
+                    <path className="chart-line" d="M0 80 Q 40 70, 80 85 T 160 55 T 240 75 T 320 40 T 400 60" fill="none" stroke="#A855F7" strokeLinecap="round" strokeWidth="3"></path>
+                    <circle className="animate-pulse" cx="160" cy="55" fill="#C084FC" r="4" style={{ filter: 'drop-shadow(0 0 6px #A855F7)' }}></circle>
+                    <circle cx="320" cy="40" fill="#C084FC" r="4" style={{ filter: 'drop-shadow(0 0 6px #A855F7)' }}></circle>
                   </svg>
                   <div className="flex justify-between mt-2 px-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                    <span>01 Oct</span>
-                    <span>08 Oct</span>
-                    <span>15 Oct</span>
-                    <span>22 Oct</span>
-                    <span>31 Oct</span>
+                    {[1, 8, 15, 22, daysInCurMonth].map(d => (
+                      <span key={d}>{String(d).padStart(2,'0')} {curMonthShort}</span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -217,8 +260,14 @@ const AccountsPage: React.FC = () => {
                 <div className="flex flex-col items-center justify-center py-4">
                   <div className="relative size-32">
                     <svg className="size-full -rotate-90" viewBox="0 0 36 36">
+                      <defs>
+                        <linearGradient id="ringGradAcc" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#A855F7" />
+                          <stop offset="100%" stopColor="#C084FC" />
+                        </linearGradient>
+                      </defs>
                       <path className="text-gray-800" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3"></path>
-                      <path className="text-primary drop-shadow-[0_0_6px_rgba(13,242,89,0.8)]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray={`${usagePercentage}, 100`} strokeLinecap="round" strokeWidth="3"></path>
+                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#ringGradAcc)" strokeDasharray={`${usagePercentage}, 100`} strokeLinecap="round" strokeWidth="3" style={{ filter: 'drop-shadow(0 0 6px rgba(168,85,247,0.8))' }}></path>
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-2xl font-black text-white">{usagePercentage}%</span>
@@ -229,11 +278,11 @@ const AccountsPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400 font-medium">Spent</span>
-                    <span className="text-white font-bold">${monthlySpent.toLocaleString()}</span>
+                    <span className="text-white font-bold">RM {monthlySpent.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400 font-medium">Remaining</span>
-                    <span className="text-primary font-bold">${(monthlyLimit - monthlySpent).toLocaleString()}</span>
+                    <span className="text-purple-400 font-bold">RM {(monthlyLimit - monthlySpent).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -243,23 +292,29 @@ const AccountsPage: React.FC = () => {
               <div className="lg:col-span-2 flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-white">Your Accounts</h2>
-                  <button 
-                    onClick={() => navigate('/settings')}
-                    className="text-sm font-bold text-primary hover:text-white transition-colors uppercase tracking-tight"
-                  >
-                    Manage Accounts
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowAddModal(true)}
+                      className="flex items-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 px-4 py-2 text-sm font-bold text-white transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)]"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">add</span>
+                      Add Account
+                    </button>
+                    <button 
+                      onClick={() => navigate('/settings')}
+                      className="text-sm font-bold text-purple-400 hover:text-white transition-colors uppercase tracking-tight"
+                    >
+                      Manage
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="grid gap-4 sm:grid-cols-2">
                   {accounts.map((account) => (
                     <button
                       key={account.id}
-                      onClick={() => {
-                        setSelectedAccount(account);
-                        localStorage.setItem('selectedAccountId', account.id.toString());
-                      }}
-                      className="glass-panel account-card-glow group relative flex flex-col justify-between rounded-2xl p-6 transition-all hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(13,242,89,0.2)] cursor-pointer text-left"
+                      onClick={() => navigate(`/account-details/${account.id}`)}
+                      className="glass-panel account-card-glow group relative flex flex-col justify-between rounded-2xl p-6 transition-all hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(168,85,247,0.2)] cursor-pointer text-left border border-white/5 hover:border-purple-500/20"
                     >
                       <div className="mb-6 flex items-start justify-between">
                         <div className="flex items-center gap-3">
@@ -270,20 +325,17 @@ const AccountsPage: React.FC = () => {
                           </div>
                           <div>
                             <p className="font-bold text-white">{account.name}</p>
-                            <p className="text-xs text-gray-400">**** {account.id.toString().slice(-4)}</p>
+                            <p className="text-xs text-gray-400 capitalize">{account.type}</p>
                           </div>
                         </div>
-                        <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase text-white">
-                          Active
-                        </span>
                       </div>
                       <div>
                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Available Balance</p>
                         <p className="text-2xl font-bold text-white mt-1">
-                          ${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          RM {account.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </p>
                       </div>
-                      <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
+                      <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-purple-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
                     </button>
                   ))}
                 </div>
@@ -329,7 +381,7 @@ const AccountsPage: React.FC = () => {
                   <h2 className="text-xl font-bold text-white">Recent Activity</h2>
                   <button 
                     onClick={() => navigate('/transactions')}
-                    className="text-sm font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-tight"
+                    className="text-sm font-bold text-purple-400 hover:text-white transition-colors uppercase tracking-tight"
                   >
                     See All
                   </button>
@@ -352,8 +404,8 @@ const AccountsPage: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-bold ${transaction.type === 'income' ? 'text-primary' : 'text-white'}`}>
-                          {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                        <p className={`text-sm font-bold ${transaction.type === 'income' ? 'text-purple-400' : 'text-white'}`}>
+                          {transaction.type === 'income' ? '+' : '-'}RM {transaction.amount.toFixed(2)}
                         </p>
                         <p className="text-[10px] font-bold text-gray-600 uppercase">{formatDate(transaction.date)}</p>
                       </div>
@@ -366,6 +418,123 @@ const AccountsPage: React.FC = () => {
         </div>
       </div>
     </div>
+
+      {/* ── Add Account Modal ─────────────────────────────────────── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowAddModal(false)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-[#00FF88]/20 bg-[#111115] p-8 shadow-[0_0_60px_rgba(0,0,0,0.8)] animate-fadeIn">
+            {/* Close */}
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              <span className="material-symbols-outlined text-white text-[18px]">close</span>
+            </button>
+
+            <h2 className="text-xl font-bold text-white mb-1">Add New Account</h2>
+            <p className="text-sm text-gray-400 mb-6">Securely link your bank or add manually.</p>
+
+            {/* Account Name */}
+            <div className="mb-4">
+              <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Account Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Primary Checking"
+                value={newAccount.name}
+                onChange={e => setNewAccount(p => ({ ...p, name: e.target.value }))}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition"
+              />
+            </div>
+
+            {/* Account Type + Currency row */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Account Type</label>
+                <div className="relative">
+                  <select
+                    value={newAccount.type}
+                    onChange={e => setNewAccount(p => ({ ...p, type: e.target.value }))}
+                    className="w-full appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-purple-500/50 transition cursor-pointer"
+                  >
+                    <option value="checking" className="bg-[#111115]">Checking</option>
+                    <option value="savings" className="bg-[#111115]">Savings</option>
+                    <option value="wallet" className="bg-[#111115]">Wallet</option>
+                    <option value="investment" className="bg-[#111115]">Investment</option>
+                  </select>
+                  <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">expand_more</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Currency</label>
+                <div className="relative">
+                  <select
+                    className="w-full appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-purple-500/50 transition cursor-pointer"
+                    defaultValue="RM"
+                  >
+                    <option value="RM" className="bg-[#111115]">RM (MYR)</option>
+                    <option value="USD" className="bg-[#111115]">USD ($)</option>
+                    <option value="EUR" className="bg-[#111115]">EUR (€)</option>
+                  </select>
+                  <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">expand_more</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Initial Balance */}
+            <div className="mb-6">
+              <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Initial Balance</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-500">RM</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={newAccount.balance}
+                  onChange={e => setNewAccount(p => ({ ...p, balance: e.target.value }))}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition"
+                />
+              </div>
+            </div>
+
+            {/* Quick Connect icons */}
+            <div className="mb-6">
+              <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Quick Connect</label>
+              <div className="flex gap-3">
+                {[
+                  { icon: 'account_balance', label: 'Bank' },
+                  { icon: 'credit_card', label: 'Card' },
+                  { icon: 'currency_bitcoin', label: 'Crypto' },
+                  { icon: 'account_balance_wallet', label: 'Wallet' },
+                ].map(({ icon, label }) => (
+                  <button
+                    key={label}
+                    title={label}
+                    className="flex size-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/30 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-gray-300 text-[20px]">{icon}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              onClick={handleAddAccount}
+              disabled={addLoading || !newAccount.name.trim()}
+              className="w-full rounded-xl bg-[#00FF88] py-3.5 text-sm font-extrabold uppercase tracking-[0.15em] text-black hover:bg-[#00DD77] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(0,255,136,0.3)]"
+            >
+              {addLoading ? 'Creating…' : 'Connect Account'}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

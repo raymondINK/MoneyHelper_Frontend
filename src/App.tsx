@@ -10,6 +10,7 @@ import BudgetPage from './features/budget'
 import SettingsPage from './features/settings'
 import RecurringPage from './features/recurring'
 import BudgetDetailsPage from './features/budget/BudgetDetailsPage'
+import AccountDetailsPage from './features/accounts/AccountDetailsPage'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardEnhanced />} />
         <Route path="/accounts" element={<AccountsPage />} />
+        <Route path="/account-details/:id" element={<AccountDetailsPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/budget" element={<BudgetPage standalone />} />

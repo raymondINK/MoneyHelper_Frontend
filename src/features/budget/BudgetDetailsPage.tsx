@@ -69,6 +69,7 @@ const BudgetDetailsPage: React.FC = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('category');
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -216,6 +217,39 @@ const BudgetDetailsPage: React.FC = () => {
     );
   };
 
+  const handleUpdateCategoryName = (id: number, newName: string) => {
+    setEditCategoryAllocations(prev =>
+      prev.map(cat => cat.id === id ? { ...cat, name: newName } : cat)
+    );
+  };
+
+  const handleUpdateCategoryIcon = (id: number, newIcon: string) => {
+    setEditCategoryAllocations(prev =>
+      prev.map(cat => cat.id === id ? { ...cat, icon: newIcon } : cat)
+    );
+  };
+
+  // When total budget changes, proportionally redistribute amounts across categories
+  const handleTotalBudgetChange = (newTotal: string) => {
+    setEditBudgetAmount(newTotal);
+    const newTotalNum = parseFloat(newTotal) || 0;
+    if (newTotalNum > 0 && editCategoryAllocations.length > 0) {
+      const currentTotal = editCategoryAllocations.reduce((s, c) => s + c.amount, 0);
+      if (currentTotal > 0) {
+        setEditCategoryAllocations(prev =>
+          prev.map(cat => ({
+            ...cat,
+            amount: parseFloat(((cat.amount / currentTotal) * newTotalNum).toFixed(2))
+          }))
+        );
+      } else {
+        // Distribute evenly if all zeros
+        const even = parseFloat((newTotalNum / editCategoryAllocations.length).toFixed(2));
+        setEditCategoryAllocations(prev => prev.map(cat => ({ ...cat, amount: even })));
+      }
+    }
+  };
+
   const handleCreateBudget = async () => {
     if (!selectedAccount || categoryAllocations.length === 0) {
       alert('Please select an account and add at least one category');
@@ -254,9 +288,11 @@ const BudgetDetailsPage: React.FC = () => {
     if (!selectedAccount) return;
     
     try {
-      // Update each budget category
+      // Update each budget category with name, icon, and amount
       for (const category of editCategoryAllocations) {
         await api.put(`/budgets/${category.id}`, {
+          name: category.name,
+          icon: category.icon,
           budget_amount: category.amount
         });
       }
@@ -830,7 +866,7 @@ const BudgetDetailsPage: React.FC = () => {
                       value={editBudgetAmount}
                       onChange={(e) => {
                         const value = e.target.value.replace(/[^0-9.]/g, '');
-                        setEditBudgetAmount(value);
+                        handleTotalBudgetChange(value);
                       }}
                     />
                   </div>
@@ -851,38 +887,99 @@ const BudgetDetailsPage: React.FC = () => {
                     {editCategoryAllocations.map((category) => {
                       const colors = getColorClasses(category.color);
                       const percentage = (category.spent / category.amount) * 100;
+                      const isEditing = editingCategoryId === category.id;
 
                       return (
-                        <div key={category.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5">
-                          <div className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center ${colors.text}`}>
-                            <span className="material-symbols-outlined">{category.icon}</span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-sm font-medium text-white">{category.name}</span>
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={category.amount}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/[^0-9.]/g, '');
-                                  handleUpdateCategoryAmount(category.id, parseFloat(value) || 0);
-                                }}
-                                className="w-24 text-sm font-bold text-white bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-right focus:ring-2 focus:ring-[#00FF88] outline-none"
-                              />
+                        <div key={category.id} className="rounded-2xl bg-white/5 border border-white/5 overflow-hidden">
+                          {/* Main row */}
+                          <div className="flex items-center gap-4 p-4">
+                            <div className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center ${colors.text} shrink-0`}>
+                              <span className="material-symbols-outlined">{category.icon}</span>
                             </div>
-                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                              <div 
-                                className={colors.progress}
-                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                              ></div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm font-medium text-white">{category.name}</span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={category.amount}
+                                  onChange={(e) => {
+                                    const value = e.target.value.replace(/[^0-9.]/g, '');
+                                    handleUpdateCategoryAmount(category.id, parseFloat(value) || 0);
+                                  }}
+                                  className="w-24 text-sm font-bold text-white bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-right focus:ring-2 focus:ring-purple-500 outline-none"
+                                />
+                              </div>
+                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                  className={`${colors.progress} h-full rounded-full`}
+                                  style={{ width: `${Math.min(percentage, 100)}%` }}
+                                ></div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <button className="material-symbols-outlined text-gray-400 hover:text-white text-lg">
-                              edit
+                            <button
+                              onClick={() => {
+                                setEditingCategoryId(isEditing ? null : category.id);
+                              }}
+                              className={`material-symbols-outlined text-lg transition-colors shrink-0 ${isEditing ? 'text-purple-400' : 'text-gray-400 hover:text-white'}`}
+                            >
+                              {isEditing ? 'expand_less' : 'edit'}
                             </button>
                           </div>
+
+                          {/* Inline edit panel */}
+                          {isEditing && (
+                            <div className="px-4 pb-4 space-y-3 border-t border-white/5 pt-3">
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Category Name</label>
+                                <input
+                                  type="text"
+                                  value={category.name}
+                                  onChange={(e) => handleUpdateCategoryName(category.id, e.target.value)}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none"
+                                  placeholder="Category name"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Icon</label>
+                                <div className="relative">
+                                  <select
+                                    value={category.icon}
+                                    onChange={(e) => handleUpdateCategoryIcon(category.id, e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none"
+                                  >
+                                    <option value="category">📦 Category (default)</option>
+                                    <option value="home">🏠 Home</option>
+                                    <option value="restaurant">🍽️ Restaurant</option>
+                                    <option value="shopping_cart">🛒 Shopping Cart</option>
+                                    <option value="shopping_bag">🛍️ Shopping Bag</option>
+                                    <option value="local_mall">🏪 Store</option>
+                                    <option value="commute">🚗 Transport</option>
+                                    <option value="directions_car">🚙 Car</option>
+                                    <option value="train">🚆 Train</option>
+                                    <option value="flight">✈️ Flight</option>
+                                    <option value="movie">🎬 Entertainment</option>
+                                    <option value="sports_esports">🎮 Gaming</option>
+                                    <option value="fitness_center">💪 Fitness</option>
+                                    <option value="medical_services">⚕️ Healthcare</option>
+                                    <option value="school">🎓 Education</option>
+                                    <option value="phone_iphone">📱 Phone</option>
+                                    <option value="wifi">📡 Internet</option>
+                                    <option value="water_drop">💧 Utilities</option>
+                                    <option value="electric_bolt">⚡ Electricity</option>
+                                    <option value="local_gas_station">⛽ Gas</option>
+                                    <option value="pets">🐾 Pets</option>
+                                    <option value="savings">💰 Savings</option>
+                                    <option value="account_balance">🏦 Banking</option>
+                                    <option value="fastfood">🍔 Fast Food</option>
+                                    <option value="local_cafe">☕ Cafe</option>
+                                    <option value="nightlife">🍷 Nightlife</option>
+                                  </select>
+                                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-sm">expand_more</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

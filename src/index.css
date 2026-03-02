@@ -37,15 +37,15 @@ body {
 
 /* Glow Effects */
 .hero-glow {
-  box-shadow: 0 0 40px rgba(13, 242, 89, 0.05);
+  box-shadow: 0 0 40px rgba(168, 85, 247, 0.08);
 }
 
 .account-card-glow:hover {
-  box-shadow: 0 0 30px rgba(13, 242, 89, 0.1);
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.15);
 }
 
 .neon-text {
-  text-shadow: 0 0 20px rgba(13, 242, 89, 0.5);
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
 }
 
 /* Chart Animation */
@@ -63,8 +63,8 @@ body {
 
 /* Liquid Progress Bar */
 .liquid-bar {
-  background: linear-gradient(90deg, #0df259 0%, #2dd4bf 100%);
-  box-shadow: 0 0 10px rgba(13, 242, 89, 0.5);
+  background: linear-gradient(90deg, #A855F7 0%, #C084FC 50%, #7C3AED 100%);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
   position: relative;
   overflow: hidden;
 }
